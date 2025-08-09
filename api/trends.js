@@ -1,6 +1,19 @@
 // Simple data storage for trends
 let trendsData = null;
 
+// Initialize with current trends data if available
+try {
+  const fs = require('fs');
+  const path = require('path');
+  const initialPath = path.join(process.cwd(), 'public', 'trends', 'latest.json');
+  if (fs.existsSync(initialPath)) {
+    trendsData = JSON.parse(fs.readFileSync(initialPath, 'utf8'));
+    console.log('🔄 Initialized with', trendsData?.trends?.length || 0, 'trends from latest.json');
+  }
+} catch (error) {
+  console.log('⚠️ Could not load initial trends data:', error.message);
+}
+
 export default function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
