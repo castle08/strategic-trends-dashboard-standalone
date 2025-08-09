@@ -59,6 +59,7 @@ const Scene: React.FC<SceneProps> = ({ trends, onTrendSelect, selectedTrend }) =
         minDistance={20}
         autoRotate={!selectedTrend}
         autoRotateSpeed={0.5}
+        {...({} as any)}
       />
       
       {/* Trend Spheres */}
