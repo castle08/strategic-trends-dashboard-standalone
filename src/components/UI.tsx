@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendsData, TrendItem, getTimeAgo, getCategoryColor, getCategoryGradient } from '../types';
+import { TrendsData, TrendItem, getTimeAgo, getCategoryGradient } from '../types';
 import { X, TrendingUp, AlertCircle } from 'lucide-react';
 
 interface UIProps {

@@ -13,6 +13,8 @@ interface TrendCrystalProps {
 }
 
 const TrendCrystal: React.FC<TrendCrystalProps> = ({ trend, position, selected, onSelect, anyTrendSelected = false }) => {
+  // Use anyTrendSelected parameter to avoid TypeScript warning
+  void anyTrendSelected;
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   

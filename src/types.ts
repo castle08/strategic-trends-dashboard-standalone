@@ -126,14 +126,6 @@ let usedIndices: Set<number> = new Set();
 // Priority order for assigning colors (primary colors first, then secondary)
 const PRIORITY_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-// Hash function for initial seed
-function hashString(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash + str.charCodeAt(i)) & 0xffffffff;
-  }
-  return Math.abs(hash);
-}
 
 // Get unique color index for category, ensuring no collisions and maximum distinction
 function getCategoryIndex(category: string): number {

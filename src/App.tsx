@@ -167,7 +167,7 @@ function App() {
       }
 
       try {
-        const apiUrl = import.meta.env.DEV 
+        const apiUrl = (import.meta.env as any)?.DEV 
           ? 'https://strategic-trends-dashboard-standalo.vercel.app/api/trends'
           : '/api/trends';
         console.log('🔄 Fetching trends from', apiUrl);
