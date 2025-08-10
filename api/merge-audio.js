@@ -108,37 +108,45 @@ export default async function handler(req, res) {
       tempFiles.push(tempFilePath);
     }
 
-    // Use the simplest approach - just merge MP3 files with copy codec
+    // Most basic approach - individual inputs with filter_complex concat
     const outputPath = path.join(tmpDir, `merged_${Date.now()}.mp3`);
     
-    // Create a simple text file listing all input files
-    const listFilePath = path.join(tmpDir, `filelist_${Date.now()}.txt`);
-    const fileList = tempFiles.map(file => `file '${file}'`).join('\n');
-    await writeFile(listFilePath, fileList);
+    console.log('Attempting FFmpeg merge with', tempFiles.length, 'files');
 
     await new Promise((resolve, reject) => {
-      ffmpeg()
-        .input(listFilePath)
-        .inputOptions(['-f', 'concat', '-safe', '0'])
-        .audioCodec('copy')
+      const command = ffmpeg();
+      
+      // Add each file as an input
+      tempFiles.forEach((file, index) => {
+        console.log(`Adding input ${index}:`, file);
+        command.addInput(file);
+      });
+      
+      // Simple concat filter without video streams
+      const filterString = tempFiles.map((_, i) => `[${i}:a]`).join('') + `concat=n=${tempFiles.length}:v=0:a=1[outa]`;
+      
+      console.log('Using filter:', filterString);
+      
+      command
+        .complexFilter([filterString])
+        .outputOptions(['-map', '[outa]'])
+        .audioCodec('aac') // Use AAC instead of copy to handle any format issues
         .output(outputPath)
+        .on('start', (commandLine) => {
+          console.log('FFmpeg command:', commandLine);
+        })
         .on('end', () => {
-          console.log('FFmpeg processing completed');
+          console.log('FFmpeg processing completed successfully');
           resolve();
         })
-        .on('error', (err) => {
-          console.error('FFmpeg error:', err);
-          console.error('Command that failed:', err.cmd);
+        .on('error', (err, stdout, stderr) => {
+          console.error('FFmpeg error:', err.message);
+          console.error('FFmpeg stderr:', stderr);
+          console.error('FFmpeg stdout:', stdout);
           reject(err);
-        })
-        .on('stderr', (stderrLine) => {
-          console.log('FFmpeg stderr:', stderrLine);
         })
         .run();
     });
-    
-    // Clean up list file
-    fs.unlinkSync(listFilePath);
 
     // Read merged file and convert to base64
     const mergedAudio = await readFile(outputPath);
