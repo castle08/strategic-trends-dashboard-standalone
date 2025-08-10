@@ -1,5 +1,15 @@
 {
   "installCommand": "npm install",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/merge-audio.js": {
+      "maxDuration": 30
+    }
+  },
+  "build": {
+    "env": {
+      "FFMPEG_PATH": "/usr/bin/ffmpeg"
+    }
+  }
 }
