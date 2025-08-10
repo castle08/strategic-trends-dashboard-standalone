@@ -108,24 +108,19 @@ export default async function handler(req, res) {
       tempFiles.push(tempFilePath);
     }
 
-    // Use a simpler approach - merge files directly without concat demuxer
-    // This approach is more reliable on serverless environments
+    // Use the simplest approach - just merge MP3 files with copy codec
     const outputPath = path.join(tmpDir, `merged_${Date.now()}.mp3`);
+    
+    // Create a simple text file listing all input files
+    const listFilePath = path.join(tmpDir, `filelist_${Date.now()}.txt`);
+    const fileList = tempFiles.map(file => `file '${file}'`).join('\n');
+    await writeFile(listFilePath, fileList);
 
     await new Promise((resolve, reject) => {
-      let command = ffmpeg();
-      
-      // Add each file as input
-      tempFiles.forEach(file => {
-        command = command.input(file);
-      });
-      
-      // Use filter_complex to concatenate
-      const filterComplex = tempFiles.map((_, i) => `[${i}:0]`).join('') + `concat=n=${tempFiles.length}:v=0:a=1[out]`;
-      
-      command
-        .complexFilter(filterComplex)
-        .outputOptions(['-map', '[out]'])
+      ffmpeg()
+        .input(listFilePath)
+        .inputOptions(['-f', 'concat', '-safe', '0'])
+        .audioCodec('copy')
         .output(outputPath)
         .on('end', () => {
           console.log('FFmpeg processing completed');
@@ -133,13 +128,17 @@ export default async function handler(req, res) {
         })
         .on('error', (err) => {
           console.error('FFmpeg error:', err);
+          console.error('Command that failed:', err.cmd);
           reject(err);
         })
-        .on('progress', (progress) => {
-          console.log('FFmpeg progress:', progress.percent);
+        .on('stderr', (stderrLine) => {
+          console.log('FFmpeg stderr:', stderrLine);
         })
         .run();
     });
+    
+    // Clean up list file
+    fs.unlinkSync(listFilePath);
 
     // Read merged file and convert to base64
     const mergedAudio = await readFile(outputPath);
