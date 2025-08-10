@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       }
 
       // Trigger the n8n podcast workflow webhook
-      const webhookUrl = 'https://t-and-p-innovation.app.n8n.cloud/webhook/746c9043-b151-4888-bfae-626208e4045c';
+      const webhookUrl = 'https://t-and-p-innovation.app.n8n.cloud/webhook/podcast-trigger';
       
       console.log('Triggering podcast workflow webhook...');
       
