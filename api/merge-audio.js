@@ -28,84 +28,58 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Raw request body keys:', Object.keys(req.body));
-    console.log('Request body type:', typeof req.body);
-    console.log('Request body sample:', JSON.stringify(req.body).substring(0, 500));
-
-    // Handle n8n input format (array of items directly)
+    console.log('Raw request body type:', typeof req.body);
+    console.log('Raw request body is array:', Array.isArray(req.body));
+    
+    // n8n sends data as array directly when using $input.all()
     let audioSegments = req.body;
     
-    // If it's wrapped in audioSegments property, extract it
-    if (req.body.audioSegments) {
-      audioSegments = req.body.audioSegments;
-    }
-
-    console.log('Audio segments type:', typeof audioSegments);
-    console.log('Audio segments is array:', Array.isArray(audioSegments));
     console.log('Audio segments length:', audioSegments?.length);
 
     if (!audioSegments || !Array.isArray(audioSegments) || audioSegments.length === 0) {
       return res.status(400).json({ error: 'audioSegments array required' });
     }
 
-    console.log(`Processing ${audioSegments.length} audio segments`);
+    console.log(`Processing ${audioSegments.length} audio segments from n8n workflow`);
 
     // Create temporary files for each audio segment
     const tempFiles = [];
     
     for (let i = 0; i < audioSegments.length; i++) {
       const segment = audioSegments[i];
-      console.log(`Segment ${i} keys:`, Object.keys(segment));
-      console.log(`Segment ${i} structure:`, JSON.stringify(segment).substring(0, 200));
+      console.log(`Segment ${i} structure:`, {
+        hasJson: !!segment.json,
+        hasBinary: !!segment.binary,
+        jsonKeys: segment.json ? Object.keys(segment.json) : [],
+        binaryKeys: segment.binary ? Object.keys(segment.binary) : []
+      });
       
-      // Extract from n8n format (segment.json.segmentInfo, segment.binary.data)
-      let audioData, duration;
-      
-      if (segment.binary && segment.binary.data) {
-        // n8n format - binary data might be in different formats
-        console.log(`Segment ${i}: Using n8n binary format`);
-        console.log(`Segment ${i} binary data type:`, typeof segment.binary.data);
-        console.log(`Segment ${i} binary data keys:`, Object.keys(segment.binary.data || {}));
-        
-        // Handle different n8n binary data formats
-        if (Buffer.isBuffer(segment.binary.data)) {
-          audioData = segment.binary.data;
-        } else if (segment.binary.data.data && Buffer.isBuffer(segment.binary.data.data)) {
-          audioData = segment.binary.data.data;
-        } else if (typeof segment.binary.data === 'string') {
-          audioData = segment.binary.data;
-        } else {
-          // Try to extract base64 data from object
-          audioData = segment.binary.data.data || segment.binary.data;
-        }
-        
-        duration = segment.json?.segmentInfo?.duration || 1;
-      } else if (segment.audio) {
-        // Direct format
-        console.log(`Segment ${i}: Using direct audio format`);
-        audioData = segment.audio;
-        duration = segment.duration || 1;
-      } else {
-        console.error(`Segment ${i} structure:`, JSON.stringify(segment, null, 2));
-        throw new Error(`Segment ${i} missing audio data`);
+      // Extract binary data from n8n format
+      if (!segment.binary || !segment.binary.data) {
+        console.error(`Segment ${i} missing binary data:`, JSON.stringify(segment, null, 2));
+        throw new Error(`Segment ${i} missing binary audio data`);
       }
 
-      console.log(`Segment ${i} audioData type:`, typeof audioData);
-      console.log(`Segment ${i} audioData is Buffer:`, Buffer.isBuffer(audioData));
-
-      // Decode base64 audio (n8n binary data handling)
-      let audioBuffer;
-      if (Buffer.isBuffer(audioData)) {
-        audioBuffer = audioData;
-      } else if (typeof audioData === 'string') {
-        audioBuffer = Buffer.from(audioData, 'base64');
-      } else {
-        throw new Error(`Segment ${i}: Invalid audio data format. Expected Buffer or base64 string, got ${typeof audioData}`);
+      // n8n binary data should already be a Buffer
+      const audioBuffer = segment.binary.data;
+      const duration = segment.json?.segmentInfo?.duration || 1;
+      
+      console.log(`Segment ${i}: audioBuffer is Buffer: ${Buffer.isBuffer(audioBuffer)}, size: ${audioBuffer ? audioBuffer.length : 'null'} bytes`);
+      
+      if (!Buffer.isBuffer(audioBuffer)) {
+        throw new Error(`Segment ${i}: Expected Buffer, got ${typeof audioBuffer}`);
       }
+      
+      if (audioBuffer.length === 0) {
+        throw new Error(`Segment ${i}: Audio buffer is empty`);
+      }
+
       const tempFilePath = path.join(tmpDir, `segment_${i}_${Date.now()}.mp3`);
       
       await writeFile(tempFilePath, audioBuffer);
       tempFiles.push(tempFilePath);
+      
+      console.log(`Segment ${i}: wrote ${audioBuffer.length} bytes to ${tempFilePath}`);
     }
 
     // Most basic approach - individual inputs with filter_complex concat
