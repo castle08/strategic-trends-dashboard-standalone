@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendItem, getTimeAgo } from '../types';
+import { TrendItem, getTimeAgo, getCategoryGradient, getCategoryColor } from '../types';
 import { TrendingUp } from 'lucide-react';
 
 interface TrendCardProps {
@@ -12,6 +12,24 @@ interface TrendCardProps {
 
 const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt }) => {
   const lastUpdated = getTimeAgo(generatedAt);
+  const categoryGradient = getCategoryGradient(trend.category);
+  const categoryColor = getCategoryColor(trend.category);
+  
+  // Calculate text color for accessibility based on category color
+  const getTextColor = (hexColor: string): string => {
+    // Remove # if present
+    const hex = hexColor.replace('#', '');
+    // Convert to RGB
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    // Calculate luminance (0-255)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+    // Return white for dark colors, black for light colors
+    return luminance < 128 ? '#ffffff' : '#000000';
+  };
+  
+  const textColor = getTextColor(categoryColor);
 
   return (
     <motion.div
@@ -20,7 +38,7 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="w-full h-screen flex flex-col justify-center px-8 py-12 md:px-16 lg:px-24 relative"
+      className="w-full h-screen flex flex-col justify-center px-4 py-6 sm:px-6 sm:py-8 md:px-12 lg:px-16 xl:px-20 relative"
     >
       {/* Particle Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -28,7 +46,7 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
           {Array.from({ length: 50 }).map((_, i) => (
             <div
               key={i}
-              className="absolute w-1 h-1 bg-blue-400/30 rounded-full animate-pulse"
+              className="absolute w-1 h-1 bg-orange-400/30 rounded-full animate-pulse"
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
@@ -41,37 +59,43 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
       </div>
 
       {/* Glassmorphism Container */}
-      <div className="relative backdrop-blur-xl bg-black/10 border border-white/10 rounded-3xl p-8 md:p-12 lg:p-16 shadow-2xl">
+      <div className="relative backdrop-blur-xl bg-black/20 border border-white/10 rounded-2xl p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 shadow-2xl max-w-7xl mx-auto">
         
         {/* Header */}
-        <div className="flex items-center justify-between mb-8 md:mb-12">
-          <div className="flex items-center space-x-4 md:space-x-6">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8">
+          <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
             <div 
-              className="w-3 h-3 md:w-4 md:h-4 rounded-full"
-              style={{ backgroundColor: trend.viz.colorHint }}
+              className="w-2 h-2 sm:w-3 sm:h-3 rounded-full"
+              style={{ background: categoryGradient }}
             />
-            <span className="text-white/70 text-lg md:text-xl lg:text-2xl font-medium">{trend.category}</span>
+            <span className="text-white/70 text-sm sm:text-base md:text-lg font-medium">{trend.category}</span>
           </div>
           
           {/* Large Impact Score */}
-          <div className="flex items-center space-x-3 md:space-x-4">
-            <TrendingUp className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
-            <span className="text-6xl md:text-7xl lg:text-8xl font-black bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <TrendingUp 
+              className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8" 
+              style={{ color: getCategoryColor(trend.category) }}
+            />
+            <span 
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black bg-clip-text text-transparent"
+              style={{ background: categoryGradient, WebkitBackgroundClip: 'text' }}
+            >
               {Math.round(trend.scores.total)}
             </span>
             <div className="flex flex-col">
-              <span className="text-lg md:text-xl lg:text-2xl text-white/80 font-semibold">IMPACT</span>
-              <span className="text-sm md:text-base text-white/50">SCORE</span>
+              <span className="text-xs sm:text-sm md:text-base text-white/80 font-semibold">IMPACT</span>
+              <span className="text-xs text-white/50">SCORE</span>
             </div>
           </div>
         </div>
         
         {/* Tags */}
-        <div className="flex flex-wrap gap-2 md:gap-3 mb-8 md:mb-12">
+        <div className="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6 md:mb-8">
           {trend.tags.slice(0, 4).map(tag => (
             <span 
               key={tag}
-              className="px-3 py-1 md:px-4 md:py-2 bg-white/10 rounded-full text-sm md:text-base text-white/70"
+              className="px-2 py-1 sm:px-3 sm:py-1 bg-white/10 rounded-full text-xs sm:text-sm text-white/70"
             >
               #{tag}
             </span>
@@ -79,13 +103,13 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col justify-center space-y-8 md:space-y-12">
+        <div className="flex-1 flex flex-col justify-center space-y-4 sm:space-y-6 md:space-y-8">
           
           {/* Title with 3D effect */}
           <motion.h1 
-            className="text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-black text-white leading-tight tracking-tight"
+            className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-white leading-tight tracking-tight"
             style={{
-              filter: 'drop-shadow(0 0 30px rgba(59, 130, 246, 0.5))'
+              filter: 'drop-shadow(0 0 20px rgba(234, 141, 105, 0.5))'
             } as any}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -96,7 +120,7 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
           
           {/* Description */}
           <motion.p 
-            className="text-lg md:text-xl lg:text-2xl xl:text-3xl text-white/90 leading-relaxed font-light max-w-5xl"
+            className="text-sm sm:text-base md:text-lg lg:text-xl text-white/90 leading-relaxed font-light max-w-4xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
@@ -106,26 +130,28 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
 
           {/* Key Opportunities */}
           <motion.div 
-            className="space-y-6 md:space-y-8"
+            className="space-y-3 sm:space-y-4 md:space-y-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
-            <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-white/80">Key Opportunities</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+            <h3 className="text-base sm:text-lg md:text-xl font-semibold text-white/80">Key Opportunities</h3>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
               {trend.brandAngles.slice(0, 4).map((angle, idx) => (
                 <motion.div 
                   key={idx} 
-                  className="flex items-start space-x-4 p-4 md:p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
+                  className="p-2 sm:p-3 md:p-4 rounded-lg hover:scale-105 transition-all duration-300"
+                  style={{ background: categoryGradient }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7 + idx * 0.1 }}
                 >
-                  <div 
-                    className="w-2 h-2 md:w-3 md:h-3 rounded-full mt-2 flex-shrink-0"
-                    style={{ backgroundColor: trend.viz.colorHint }}
-                  />
-                  <span className="text-white/80 text-base md:text-lg lg:text-xl leading-relaxed">{angle}</span>
+                  <span 
+                    className="text-xs sm:text-sm md:text-base leading-relaxed font-medium"
+                    style={{ color: textColor }}
+                  >
+                    {angle}
+                  </span>
                 </motion.div>
               ))}
             </div>
@@ -134,17 +160,17 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
 
         {/* Bottom Section - Use Cases */}
         <motion.div
-          className="border-t border-white/20 pt-6 md:pt-8 space-y-4 md:space-y-6"
+          className="pt-3 sm:pt-4 md:pt-6 space-y-2 sm:space-y-3 md:space-y-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
         >
-          <h3 className="text-lg md:text-xl lg:text-2xl font-semibold text-white/80">Example Applications</h3>
-          <div className="flex flex-wrap gap-3 md:gap-4">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold text-white/80">Example Applications</h3>
+          <div className="flex flex-wrap gap-1 sm:gap-2 md:gap-3">
             {trend.exampleUseCases.map((useCase, idx) => (
               <motion.span
                 key={idx}
-                className="px-4 py-2 md:px-6 md:py-3 bg-white/10 rounded-lg text-white/80 text-sm md:text-base lg:text-lg font-medium"
+                className="px-2 py-1 sm:px-3 sm:py-2 bg-white/10 rounded-md text-white/80 text-xs sm:text-sm font-medium"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.9 + idx * 0.05 }}
@@ -156,7 +182,7 @@ const TrendCard: React.FC<TrendCardProps> = ({ trend, index, total, generatedAt 
         </motion.div>
 
         {/* Progress indicator */}
-        <div className="mt-8 md:mt-12 text-white/50 text-sm md:text-base text-center">
+        <div className="mt-4 sm:mt-6 md:mt-8 text-white/50 text-xs sm:text-sm text-center">
           {index + 1} / {total} • Updated {lastUpdated}
         </div>
       </div>

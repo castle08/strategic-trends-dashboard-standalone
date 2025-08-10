@@ -167,8 +167,11 @@ function App() {
       }
 
       try {
-        console.log('🔄 Fetching trends from /api/trends...');
-        const response = await fetch('/api/trends');
+        const apiUrl = import.meta.env.DEV 
+          ? 'https://strategic-trends-dashboard-standalo.vercel.app/api/trends'
+          : '/api/trends';
+        console.log('🔄 Fetching trends from', apiUrl);
+        const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -199,7 +202,7 @@ function App() {
     
     const interval = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % trendsData.trends.length);
-    }, 12 * 1000); // 12 seconds per card
+    }, 15 * 1000); // 15 seconds per card
     
     return () => clearInterval(interval);
   }, [trendsData, isScreensMode]);
@@ -213,8 +216,13 @@ function App() {
     const currentTrend = trendsData.trends[currentIndex];
     
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-slate-800 to-black flex items-center justify-center overflow-hidden">
-        <div className="w-full max-w-[95vw]">
+      <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden relative">
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60"
+          style={{ backgroundImage: 'url(/video-mask.svg)' }}
+        />
+        <div className="w-full max-w-[95vw] relative z-10">
           <TrendCard 
             trend={currentTrend} 
             index={currentIndex}
@@ -255,7 +263,7 @@ function App() {
     <ErrorBoundary>
       <div className="w-screen h-screen bg-gradient-to-b from-gray-900 via-slate-800 to-black">
         <Canvas
-          camera={{ position: [0, 0, 50], fov: 60 }}
+          camera={{ position: [0, 0, 40], fov: 70 }}
           gl={{ antialias: true, alpha: false }}
         >
           <Suspense fallback={null}>

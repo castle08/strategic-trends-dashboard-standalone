@@ -22,7 +22,7 @@ const Scene: React.FC<SceneProps> = ({ trends, onTrendSelect, selectedTrend }) =
     for (let i = 0; i < nodesToShow; i++) {
       const phi = Math.acos(-1 + (2 * i) / nodesToShow);
       const theta = Math.sqrt(nodesToShow * Math.PI) * phi;
-      const radius = 20 + Math.random() * 15;
+      const radius = 18 + Math.random() * 12; // Tighter grouping: 18-30 for better initial view
       
       const x = radius * Math.cos(theta) * Math.sin(phi);
       const y = radius * Math.sin(theta) * Math.sin(phi);
@@ -36,7 +36,7 @@ const Scene: React.FC<SceneProps> = ({ trends, onTrendSelect, selectedTrend }) =
 
   useFrame(() => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += 0.001;
+      groupRef.current.rotation.y += 0.0005;
     }
   });
 
@@ -53,12 +53,15 @@ const Scene: React.FC<SceneProps> = ({ trends, onTrendSelect, selectedTrend }) =
       
       {/* Controls */}
       <OrbitControls
-        enablePan={false}
+        enablePan={true}
         enableZoom={true}
-        maxDistance={80}
-        minDistance={20}
+        maxDistance={150}
+        minDistance={2}
         autoRotate={!selectedTrend}
         autoRotateSpeed={0.5}
+        panSpeed={1.2}
+        zoomSpeed={1.2}
+        rotateSpeed={0.8}
         {...({} as any)}
       />
       
@@ -67,15 +70,16 @@ const Scene: React.FC<SceneProps> = ({ trends, onTrendSelect, selectedTrend }) =
         {trends.slice(0, positions.length).map((trend, index) => (
           <Float
             key={trend.id}
-            speed={1 + Math.random()}
-            rotationIntensity={0.5}
-            floatIntensity={0.5}
+            speed={0.5 + Math.random() * 0.5}
+            rotationIntensity={0.3}
+            floatIntensity={0.3}
           >
             <TrendCrystal
               trend={trend}
               position={positions[index]}
               selected={selectedTrend?.id === trend.id}
               onSelect={() => onTrendSelect(trend)}
+              anyTrendSelected={selectedTrend !== null}
             />
           </Float>
         ))}

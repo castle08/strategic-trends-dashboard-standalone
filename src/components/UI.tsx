@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendsData, TrendItem, getTimeAgo } from '../types';
+import { TrendsData, TrendItem, getTimeAgo, getCategoryColor, getCategoryGradient } from '../types';
 import { X, TrendingUp, AlertCircle } from 'lucide-react';
 
 interface UIProps {
@@ -80,7 +80,7 @@ const UI: React.FC<UIProps> = ({
                 <div className="flex items-center space-x-3">
                   <div 
                     className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: selectedTrend.viz.colorHint }}
+                    style={{ background: getCategoryGradient(selectedTrend.category) }}
                   />
                   <span className="text-white/70 font-medium">{selectedTrend.category}</span>
                 </div>
@@ -146,7 +146,10 @@ const UI: React.FC<UIProps> = ({
                   <ul className="space-y-2">
                     {selectedTrend.brandAngles.map((angle, idx) => (
                       <li key={idx} className="flex items-start space-x-2">
-                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-2 flex-shrink-0" />
+                        <div 
+                          className="w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0"
+                          style={{ background: getCategoryGradient(selectedTrend.category) }}
+                        />
                         <span className="text-white/80">{angle}</span>
                       </li>
                     ))}
@@ -179,40 +182,36 @@ const UI: React.FC<UIProps> = ({
         <div className="absolute bottom-6 left-6 glass-panel rounded-lg p-4 max-w-sm z-20">
           <div className="text-white/80 text-sm space-y-2">
             <div className="font-medium">How to explore:</div>
-            <div>• Click and drag to rotate the view</div>
-            <div>• Scroll to zoom in/out</div>
-            <div>• Click on spheres to view details</div>
-            <div>• Larger, brighter spheres = higher impact</div>
+            <div>• <strong>Left click + drag:</strong> Rotate the view</div>
+            <div>• <strong>Right click + drag:</strong> Pan around</div>
+            <div>• <strong>Scroll:</strong> Zoom in/out</div>
+            <div>• <strong>Click shapes:</strong> View details</div>
+            <div>• Larger, brighter shapes = higher impact</div>
           </div>
         </div>
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-6 right-6 glass-panel rounded-lg p-4 z-20">
-        <div className="text-white/80 text-sm space-y-2">
-          <div className="font-medium mb-3">Legend</div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
-            <span>AI/ML</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span>Sustainability</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-purple-500" />
-            <span>E-commerce</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-pink-500" />
-            <span>Social Media</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-cyan-500" />
-            <span>Technology</span>
+      {trendsData && (
+        <div className="absolute bottom-6 right-6 glass-panel rounded-lg p-4 z-20">
+          <div className="text-white/80 text-sm space-y-2">
+            <div className="font-medium mb-3">Legend</div>
+            {/* Show unique categories from actual data */}
+            {Array.from(new Set(trendsData.trends.map(trend => trend.category)))
+              .sort()
+              .map(category => (
+                <div key={category} className="flex items-center space-x-2">
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    style={{ background: getCategoryGradient(category) }}
+                  />
+                  <span className="text-sm">{category}</span>
+                </div>
+              ))
+            }
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 };
