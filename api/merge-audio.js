@@ -1,7 +1,11 @@
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from '@ffmpeg-installer/ffmpeg';
 import path from 'path';
 import fs from 'fs';
 import { promisify } from 'util';
+
+// Set FFmpeg path for fluent-ffmpeg
+ffmpeg.setFfmpegPath(ffmpegPath.path);
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
 
