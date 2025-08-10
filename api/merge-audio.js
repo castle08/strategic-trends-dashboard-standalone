@@ -24,6 +24,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Raw request body keys:', Object.keys(req.body));
+    console.log('Request body type:', typeof req.body);
+    console.log('Request body sample:', JSON.stringify(req.body).substring(0, 500));
+
     // Handle n8n input format (array of items directly)
     let audioSegments = req.body;
     
@@ -31,6 +35,10 @@ export default async function handler(req, res) {
     if (req.body.audioSegments) {
       audioSegments = req.body.audioSegments;
     }
+
+    console.log('Audio segments type:', typeof audioSegments);
+    console.log('Audio segments is array:', Array.isArray(audioSegments));
+    console.log('Audio segments length:', audioSegments?.length);
 
     if (!audioSegments || !Array.isArray(audioSegments) || audioSegments.length === 0) {
       return res.status(400).json({ error: 'audioSegments array required' });
@@ -44,19 +52,24 @@ export default async function handler(req, res) {
     
     for (let i = 0; i < audioSegments.length; i++) {
       const segment = audioSegments[i];
+      console.log(`Segment ${i} keys:`, Object.keys(segment));
+      console.log(`Segment ${i} structure:`, JSON.stringify(segment).substring(0, 200));
       
       // Extract from n8n format (segment.json.segmentInfo, segment.binary.data)
       let audioData, duration;
       
       if (segment.binary && segment.binary.data) {
         // n8n format
+        console.log(`Segment ${i}: Using n8n binary format`);
         audioData = segment.binary.data;
         duration = segment.json?.segmentInfo?.duration || 1;
       } else if (segment.audio) {
         // Direct format
+        console.log(`Segment ${i}: Using direct audio format`);
         audioData = segment.audio;
         duration = segment.duration || 1;
       } else {
+        console.error(`Segment ${i} structure:`, JSON.stringify(segment, null, 2));
         throw new Error(`Segment ${i} missing audio data`);
       }
 
