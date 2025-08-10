@@ -52,7 +52,6 @@ export default async function handler(req, res) {
 
     // Create temporary files for each audio segment
     const tempFiles = [];
-    const listFilePath = path.join(tmpDir, `playlist_${Date.now()}.txt`);
     
     for (let i = 0; i < audioSegments.length; i++) {
       const segment = audioSegments[i];
@@ -109,22 +108,36 @@ export default async function handler(req, res) {
       tempFiles.push(tempFilePath);
     }
 
-    // Create FFmpeg concat list file
-    const listContent = tempFiles.map(file => `file '${file}'`).join('\n');
-    await writeFile(listFilePath, listContent);
-
-    // Output file path
+    // Use a simpler approach - merge files directly without concat demuxer
+    // This approach is more reliable on serverless environments
     const outputPath = path.join(tmpDir, `merged_${Date.now()}.mp3`);
 
-    // Use FFmpeg to concatenate audio files
     await new Promise((resolve, reject) => {
-      ffmpeg()
-        .input(listFilePath)
-        .inputOptions(['-f', 'concat', '-safe', '0'])
-        .outputOptions(['-c', 'copy'])
+      let command = ffmpeg();
+      
+      // Add each file as input
+      tempFiles.forEach(file => {
+        command = command.input(file);
+      });
+      
+      // Use filter_complex to concatenate
+      const filterComplex = tempFiles.map((_, i) => `[${i}:0]`).join('') + `concat=n=${tempFiles.length}:v=0:a=1[out]`;
+      
+      command
+        .complexFilter(filterComplex)
+        .outputOptions(['-map', '[out]'])
         .output(outputPath)
-        .on('end', resolve)
-        .on('error', reject)
+        .on('end', () => {
+          console.log('FFmpeg processing completed');
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err);
+          reject(err);
+        })
+        .on('progress', (progress) => {
+          console.log('FFmpeg progress:', progress.percent);
+        })
         .run();
     });
 
@@ -133,7 +146,7 @@ export default async function handler(req, res) {
     const base64Audio = mergedAudio.toString('base64');
 
     // Cleanup temporary files
-    tempFiles.push(listFilePath, outputPath);
+    tempFiles.push(outputPath);
     for (const file of tempFiles) {
       try {
         fs.unlinkSync(file);
