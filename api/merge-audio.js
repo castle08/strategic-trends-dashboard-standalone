@@ -59,9 +59,23 @@ export default async function handler(req, res) {
       let audioData, duration;
       
       if (segment.binary && segment.binary.data) {
-        // n8n format
+        // n8n format - binary data might be in different formats
         console.log(`Segment ${i}: Using n8n binary format`);
-        audioData = segment.binary.data;
+        console.log(`Segment ${i} binary data type:`, typeof segment.binary.data);
+        console.log(`Segment ${i} binary data keys:`, Object.keys(segment.binary.data || {}));
+        
+        // Handle different n8n binary data formats
+        if (Buffer.isBuffer(segment.binary.data)) {
+          audioData = segment.binary.data;
+        } else if (segment.binary.data.data && Buffer.isBuffer(segment.binary.data.data)) {
+          audioData = segment.binary.data.data;
+        } else if (typeof segment.binary.data === 'string') {
+          audioData = segment.binary.data;
+        } else {
+          // Try to extract base64 data from object
+          audioData = segment.binary.data.data || segment.binary.data;
+        }
+        
         duration = segment.json?.segmentInfo?.duration || 1;
       } else if (segment.audio) {
         // Direct format
@@ -73,8 +87,18 @@ export default async function handler(req, res) {
         throw new Error(`Segment ${i} missing audio data`);
       }
 
-      // Decode base64 audio (n8n binary data is already a buffer)
-      const audioBuffer = Buffer.isBuffer(audioData) ? audioData : Buffer.from(audioData, 'base64');
+      console.log(`Segment ${i} audioData type:`, typeof audioData);
+      console.log(`Segment ${i} audioData is Buffer:`, Buffer.isBuffer(audioData));
+
+      // Decode base64 audio (n8n binary data handling)
+      let audioBuffer;
+      if (Buffer.isBuffer(audioData)) {
+        audioBuffer = audioData;
+      } else if (typeof audioData === 'string') {
+        audioBuffer = Buffer.from(audioData, 'base64');
+      } else {
+        throw new Error(`Segment ${i}: Invalid audio data format. Expected Buffer or base64 string, got ${typeof audioData}`);
+      }
       const tempFilePath = path.join(tmpDir, `segment_${i}_${Date.now()}.mp3`);
       
       await writeFile(tempFilePath, audioBuffer);
