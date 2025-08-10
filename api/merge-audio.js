@@ -79,7 +79,12 @@ export default async function handler(req, res) {
         audioBuffer = Buffer.from(binaryData, 'base64');
         console.log(`Segment ${i}: decoded from base64 string`);
       } else {
-        console.error(`Segment ${i} unexpected binary data format:`, typeof binaryData, Object.keys(binaryData || {}));
+        console.error(`Segment ${i} unexpected binary data format:`);
+        console.error(`- Type: ${typeof binaryData}`);
+        console.error(`- Keys: ${Object.keys(binaryData || {})}`);
+        console.error(`- Sample: ${JSON.stringify(binaryData).substring(0, 300)}`);
+        console.error(`- Has type property: ${binaryData?.type}`);
+        console.error(`- Has data property: ${binaryData?.data ? 'yes, type: ' + typeof binaryData.data : 'no'}`);
         throw new Error(`Segment ${i}: Unexpected binary data format - ${typeof binaryData}`);
       }
       
