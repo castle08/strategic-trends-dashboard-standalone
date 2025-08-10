@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
@@ -10,7 +10,7 @@ export default function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    // Store RSS data for podcast generation
+    // Process RSS data and trigger podcast workflow
     try {
       const rssData = req.body;
       
@@ -22,22 +22,46 @@ export default function handler(req, res) {
         return res.status(400).json({ error: 'No RSS data provided' });
       }
 
-      // Store the data temporarily (in production, you'd use a database)
-      // For now, we'll just validate and return it for webhook trigger
+      // Trigger the n8n podcast workflow webhook
+      const webhookUrl = 'https://t-and-p-innovation.app.n8n.cloud/webhook/podcast-trigger';
+      
+      console.log('Triggering podcast workflow webhook...');
+      
+      const webhookResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rssData: rssData,
+          triggeredAt: new Date().toISOString(),
+          source: 'trends-dashboard'
+        })
+      });
+
+      let webhookResult = 'Webhook triggered';
+      if (webhookResponse.ok) {
+        console.log('Podcast workflow webhook triggered successfully');
+        webhookResult = 'Podcast workflow started';
+      } else {
+        console.error('Webhook trigger failed:', webhookResponse.status, webhookResponse.statusText);
+        webhookResult = `Webhook failed: ${webhookResponse.status}`;
+      }
+
       const response = {
         success: true,
-        message: 'RSS data received and ready for podcast generation',
+        message: 'RSS data received and podcast workflow triggered',
         timestamp: new Date().toISOString(),
         dataReceived: {
           hasData: !!rssData,
           type: typeof rssData,
           keys: Object.keys(rssData || {})
         },
-        // Return the data for immediate use
-        rssData: rssData
+        webhookTriggered: webhookResponse.ok,
+        webhookStatus: webhookResult
       };
 
-      console.log('RSS data processed successfully');
+      console.log('RSS data processed and podcast workflow triggered');
       res.status(200).json(response);
 
     } catch (error) {
