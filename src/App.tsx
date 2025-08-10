@@ -5,6 +5,8 @@ import Scene from './components/Scene';
 import UI from './components/UI';
 import LoadingScreen from './components/LoadingScreen';
 import ErrorBoundary from './components/ErrorBoundary';
+import TrendCard from './components/TrendCard';
+import ErrorScreen from './components/ErrorScreen';
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -148,10 +150,13 @@ const DEMO_DATA: TrendsData = {
 function App() {
   const [trendsData, setTrendsData] = useState<TrendsData | null>(null);
   const [selectedTrend, setSelectedTrend] = useState<TrendItem | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isDemoMode = new URLSearchParams(window.location.search).has('demo');
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDemoMode = urlParams.has('demo');
+  const isScreensMode = urlParams.has('screens') || urlParams.get('view') === 'screens';
 
   useEffect(() => {
     const fetchTrends = async () => {
@@ -162,8 +167,11 @@ function App() {
       }
 
       try {
-        console.log('🔄 Fetching trends from /api/trends...');
-        const response = await fetch('/api/trends');
+        const apiUrl = import.meta.env.DEV 
+          ? 'https://strategic-trends-dashboard-standalo.vercel.app/api/trends'
+          : '/api/trends';
+        console.log('🔄 Fetching trends from', apiUrl);
+        const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -188,13 +196,74 @@ function App() {
     return () => clearInterval(interval);
   }, [isDemoMode]);
 
-  if (loading) return <LoadingScreen />;
+  // Card rotation for screens mode
+  useEffect(() => {
+    if (!isScreensMode || !trendsData?.trends.length) return;
+    
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % trendsData.trends.length);
+    }, 15 * 1000); // 15 seconds per card
+    
+    return () => clearInterval(interval);
+  }, [trendsData, isScreensMode]);
 
+  if (loading) return <LoadingScreen />;
+  if (error && !trendsData) return <ErrorScreen message={error} />;
+  if (!trendsData?.trends.length) return <ErrorScreen message="No trends available" />;
+
+  // Screens Mode - TV Display
+  if (isScreensMode) {
+    const currentTrend = trendsData.trends[currentIndex];
+    
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden relative">
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60"
+          style={{ backgroundImage: 'url(/video-mask.svg)' }}
+        />
+        <div className="w-full max-w-[95vw] relative z-10">
+          <TrendCard 
+            trend={currentTrend} 
+            index={currentIndex}
+            total={trendsData.trends.length}
+            generatedAt={trendsData.generatedAt}
+          />
+          
+          {/* Progress indicators */}
+          <div className="fixed bottom-12 left-1/2 transform -translate-x-1/2 flex space-x-3">
+            {trendsData.trends.map((_, index) => (
+              <div
+                key={index}
+                className={`h-1 rounded-full transition-all duration-500 ${
+                  index === currentIndex 
+                    ? 'bg-blue-400 w-16' 
+                    : 'bg-white/20 w-8'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Status indicator */}
+          <div className="fixed top-8 right-8 backdrop-blur-sm bg-black/30 rounded-xl px-4 py-2 text-white/70 text-lg font-medium">
+            <div className="flex items-center space-x-2">
+              <div className={`w-2 h-2 rounded-full ${isDemoMode ? 'bg-yellow-400' : 'bg-green-400'}`} />
+              <span>{isDemoMode ? 'DEMO' : 'LIVE'}</span>
+              <span className="text-white/50">•</span>
+              <span>{trendsData.trends.length} trends</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default 3D Dashboard Mode
   return (
     <ErrorBoundary>
       <div className="w-screen h-screen bg-gradient-to-b from-gray-900 via-slate-800 to-black">
         <Canvas
-          camera={{ position: [0, 0, 50], fov: 60 }}
+          camera={{ position: [0, 0, 40], fov: 70 }}
           gl={{ antialias: true, alpha: false }}
         >
           <Suspense fallback={null}>

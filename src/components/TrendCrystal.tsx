@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { TrendItem } from '../types';
+import { TrendItem, getCategoryColor } from '../types';
 import * as THREE from 'three';
 
 interface TrendCrystalProps {
@@ -9,41 +9,46 @@ interface TrendCrystalProps {
   position: [number, number, number];
   selected: boolean;
   onSelect: () => void;
+  anyTrendSelected?: boolean;
 }
 
-const TrendCrystal: React.FC<TrendCrystalProps> = ({ trend, position, selected, onSelect }) => {
+const TrendCrystal: React.FC<TrendCrystalProps> = ({ trend, position, selected, onSelect, anyTrendSelected = false }) => {
+  // Use anyTrendSelected parameter to avoid TypeScript warning
+  void anyTrendSelected;
   const meshRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   
-  // Scale size dramatically based on trend scores - much more noticeable variance
-  const scoreRatio = trend.scores.total / 100; // 0-1 ratio
-  const size = 0.8 + (scoreRatio * 4); // Range from 0.8 to 4.8 (6x difference)
+  // Dynamic size scaling based on actual live data range
+  const minScore = 50; // Much wider range to handle live data variety
+  const maxScore = 100; // Full theoretical range
+  const normalizedScore = Math.max(0, Math.min(1, (trend.scores.total - minScore) / (maxScore - minScore)));
+  // Reasonable scaling with clear differences
+  const adjustedSize = 1.0 + (normalizedScore * 4.0); // Range 1.0 to 5.0 (5x difference)
+  
+  // Debug logging to see actual scores
+  console.log(`📊 ${trend.category} (${trend.scores.total}) -> Size: ${adjustedSize.toFixed(1)}`);
   const intensity = trend.viz.intensity;
   
-  // Parse HSL color
-  const hslMatch = trend.viz.colorHint.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
-  const hue = hslMatch ? parseInt(hslMatch[1]) / 360 : 0.6;
-  const saturation = hslMatch ? parseInt(hslMatch[2]) / 100 : 0.8;
-  const lightness = hslMatch ? parseInt(hslMatch[3]) / 100 : 0.6;
-  
-  const color = new THREE.Color().setHSL(hue, saturation, lightness);
+  // Use T&P Group category colors
+  const categoryColor = getCategoryColor(trend.category);
+  const color = new THREE.Color(categoryColor);
 
-  // Shape based on category
+  // Shape based on category - using adjusted size for better visual distinction
   const getGeometry = (category: string) => {
     switch (category.toLowerCase()) {
       case 'ai/ml':
       case 'ai':
-        return <dodecahedronGeometry args={[size, 0]} />; // Complex AI shape
+        return <dodecahedronGeometry args={[adjustedSize, 0]} />; // Complex AI shape
       case 'sustainability':
       case 'design':
-        return <tetrahedronGeometry args={[size * 1.2, 0]} />; // Clean pyramid for design
+        return <tetrahedronGeometry args={[adjustedSize * 1.2, 0]} />; // Clean pyramid for design
       case 'e-commerce':
       case 'technology':
-        return <boxGeometry args={[size * 1.5, size * 1.5, size * 1.5]} />; // Cube for tech
+        return <boxGeometry args={[adjustedSize * 1.2, adjustedSize * 1.2, adjustedSize * 1.2]} />; // Cube for tech
       case 'social media':
-        return <sphereGeometry args={[size, 16, 16]} />; // Sphere for social
+        return <sphereGeometry args={[adjustedSize, 16, 16]} />; // Sphere for social
       default:
-        return <octahedronGeometry args={[size, 0]} />; // Default crystal
+        return <octahedronGeometry args={[adjustedSize, 0]} />; // Default crystal
     }
   };
 
@@ -51,19 +56,20 @@ const TrendCrystal: React.FC<TrendCrystalProps> = ({ trend, position, selected, 
     switch (category.toLowerCase()) {
       case 'ai/ml':
       case 'ai':
-        return <dodecahedronGeometry args={[1.02, 0]} />;
+        return <dodecahedronGeometry args={[adjustedSize * 1.02, 0]} />;
       case 'sustainability':
       case 'design':
-        return <tetrahedronGeometry args={[1.22, 0]} />;
+        return <tetrahedronGeometry args={[adjustedSize * 1.22, 0]} />;
       case 'e-commerce':
       case 'technology':
-        return <boxGeometry args={[1.53, 1.53, 1.53]} />;
+        return <boxGeometry args={[adjustedSize * 1.22, adjustedSize * 1.22, adjustedSize * 1.22]} />;
       case 'social media':
-        return <sphereGeometry args={[1.02, 16, 16]} />;
+        return <sphereGeometry args={[adjustedSize * 1.02, 16, 16]} />;
       default:
-        return <octahedronGeometry args={[1.02, 0]} />;
+        return <octahedronGeometry args={[adjustedSize * 1.02, 0]} />;
     }
   };
+
 
   useFrame((state) => {
     if (meshRef.current) {
@@ -74,10 +80,10 @@ const TrendCrystal: React.FC<TrendCrystalProps> = ({ trend, position, selected, 
       
       meshRef.current.scale.setScalar(pulseScale * selectedScale * hoverScale);
       
-      // Gentle rotation
-      meshRef.current.rotation.x += 0.002;
-      meshRef.current.rotation.y += 0.003;
-      meshRef.current.rotation.z += 0.001;
+      // Gentle rotation - slowed down
+      meshRef.current.rotation.x += 0.001;
+      meshRef.current.rotation.y += 0.0015;
+      meshRef.current.rotation.z += 0.0005;
     }
   });
 
@@ -100,28 +106,45 @@ const TrendCrystal: React.FC<TrendCrystalProps> = ({ trend, position, selected, 
           document.body.style.cursor = 'auto';
         }}
       >
-        {/* Dynamic geometry based on category */}
+        {/* Solid shape for category - visible fill */}
         {getGeometry(trend.category)}
         <meshPhongMaterial
           color={color}
           transparent
-          opacity={0.8}
+          opacity={0.3}
           shininess={100}
-          reflectivity={0.5}
         />
       </mesh>
       
-      {/* Wireframe overlay for premium feel */}
-      <mesh scale={[size, size, size]}>
-        {getWireframeGeometry(trend.category)}
-        <meshBasicMaterial
-          color={color}
-          wireframe
-          wireframeLinewidth={3}
-          transparent
-          opacity={0.5}
-        />
-      </mesh>
+      
+      {/* Multiple wireframe overlays for much thicker borders - all interactive */}
+      {[0, 0.3, 0.6, 0.9, 1.2, 1.5].map((offset, i) => (
+        <mesh 
+          key={i} 
+          scale={[1 + offset * 0.008, 1 + offset * 0.008, 1 + offset * 0.008]}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            setHovered(true);
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => {
+            setHovered(false);
+            document.body.style.cursor = 'auto';
+          }}
+        >
+          {getWireframeGeometry(trend.category)}
+          <meshBasicMaterial
+            color={color}
+            wireframe
+            transparent
+            opacity={0.8 - i * 0.12}
+          />
+        </mesh>
+      ))}
       
       {/* Floating text label */}
       {(hovered || selected) && (
@@ -150,28 +173,16 @@ const TrendCrystal: React.FC<TrendCrystalProps> = ({ trend, position, selected, 
         </Html>
       )}
       
-      {/* Glow effect for high-impact trends */}
-      {trend.scores.total > 80 && (
-        <mesh scale={[size * 2, size * 2, size * 2]}>
-          <sphereGeometry args={[1, 16, 16]} />
-          <meshBasicMaterial
-            color={color}
-            transparent
-            opacity={0.05}
-            side={THREE.BackSide}
-          />
-        </mesh>
-      )}
       
       {/* Particle effects for velocity */}
-      {trend.scores.velocity > 80 && (
+      {trend.scores.velocity > 70 && (
         <points>
-          <sphereGeometry args={[size * 3, 8, 8]} />
+          <sphereGeometry args={[adjustedSize * 2, 8, 8]} />
           <pointsMaterial
             color={color}
             size={0.1}
             transparent
-            opacity={0.6}
+            opacity={0.4}
           />
         </points>
       )}
