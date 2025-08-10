@@ -60,14 +60,27 @@ export default async function handler(req, res) {
         throw new Error(`Segment ${i} missing binary audio data`);
       }
 
-      // n8n binary data should already be a Buffer
-      const audioBuffer = segment.binary.data;
+      // n8n serializes binary data as objects when sent via HTTP JSON
+      const binaryData = segment.binary.data;
       const duration = segment.json?.segmentInfo?.duration || 1;
       
-      console.log(`Segment ${i}: audioBuffer is Buffer: ${Buffer.isBuffer(audioBuffer)}, size: ${audioBuffer ? audioBuffer.length : 'null'} bytes`);
+      console.log(`Segment ${i}: binaryData type: ${typeof binaryData}, isBuffer: ${Buffer.isBuffer(binaryData)}`);
       
-      if (!Buffer.isBuffer(audioBuffer)) {
-        throw new Error(`Segment ${i}: Expected Buffer, got ${typeof audioBuffer}`);
+      // Convert serialized buffer object back to Buffer
+      let audioBuffer;
+      if (Buffer.isBuffer(binaryData)) {
+        audioBuffer = binaryData;
+      } else if (binaryData && typeof binaryData === 'object' && binaryData.type === 'Buffer' && Array.isArray(binaryData.data)) {
+        // Reconstruct Buffer from serialized object: {type: 'Buffer', data: [1,2,3...]}
+        audioBuffer = Buffer.from(binaryData.data);
+        console.log(`Segment ${i}: reconstructed Buffer from serialized object`);
+      } else if (typeof binaryData === 'string') {
+        // Base64 encoded string
+        audioBuffer = Buffer.from(binaryData, 'base64');
+        console.log(`Segment ${i}: decoded from base64 string`);
+      } else {
+        console.error(`Segment ${i} unexpected binary data format:`, typeof binaryData, Object.keys(binaryData || {}));
+        throw new Error(`Segment ${i}: Unexpected binary data format - ${typeof binaryData}`);
       }
       
       if (audioBuffer.length === 0) {
