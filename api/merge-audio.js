@@ -66,26 +66,59 @@ export default async function handler(req, res) {
       
       console.log(`Segment ${i}: binaryData type: ${typeof binaryData}, isBuffer: ${Buffer.isBuffer(binaryData)}`);
       
-      // Convert serialized buffer object back to Buffer
+      // Handle all possible n8n binary data formats
       let audioBuffer;
+      
       if (Buffer.isBuffer(binaryData)) {
         audioBuffer = binaryData;
-      } else if (binaryData && typeof binaryData === 'object' && binaryData.type === 'Buffer' && Array.isArray(binaryData.data)) {
-        // Reconstruct Buffer from serialized object: {type: 'Buffer', data: [1,2,3...]}
-        audioBuffer = Buffer.from(binaryData.data);
-        console.log(`Segment ${i}: reconstructed Buffer from serialized object`);
+        console.log(`Segment ${i}: using direct Buffer`);
       } else if (typeof binaryData === 'string') {
         // Base64 encoded string
         audioBuffer = Buffer.from(binaryData, 'base64');
         console.log(`Segment ${i}: decoded from base64 string`);
+      } else if (binaryData && typeof binaryData === 'object') {
+        // Try different object formats
+        if (binaryData.type === 'Buffer' && Array.isArray(binaryData.data)) {
+          // Standard Node.js Buffer serialization: {type: 'Buffer', data: [1,2,3...]}
+          audioBuffer = Buffer.from(binaryData.data);
+          console.log(`Segment ${i}: reconstructed from standard Buffer object`);
+        } else if (binaryData.data && typeof binaryData.data === 'string') {
+          // n8n might wrap base64 in data property
+          audioBuffer = Buffer.from(binaryData.data, 'base64');
+          console.log(`Segment ${i}: extracted base64 from data property`);
+        } else if (Array.isArray(binaryData)) {
+          // Direct array of bytes
+          audioBuffer = Buffer.from(binaryData);
+          console.log(`Segment ${i}: created from byte array`);
+        } else {
+          // Fallback: try to find any base64-looking string in the object
+          const keys = Object.keys(binaryData);
+          let found = false;
+          
+          for (const key of keys) {
+            const value = binaryData[key];
+            if (typeof value === 'string' && value.length > 100) {
+              try {
+                audioBuffer = Buffer.from(value, 'base64');
+                console.log(`Segment ${i}: found base64 data in property '${key}'`);
+                found = true;
+                break;
+              } catch (e) {
+                // Not valid base64, continue
+              }
+            }
+          }
+          
+          if (!found) {
+            // Last resort: log full structure and fail gracefully
+            console.error(`Segment ${i} unknown binary data structure:`);
+            console.error(`Keys: ${keys.join(', ')}`);
+            console.error(`Sample values:`, keys.slice(0, 3).map(k => `${k}: ${typeof binaryData[k]} (${String(binaryData[k]).substring(0, 50)}...)`));
+            throw new Error(`Segment ${i}: Could not extract audio data from object`);
+          }
+        }
       } else {
-        console.error(`Segment ${i} unexpected binary data format:`);
-        console.error(`- Type: ${typeof binaryData}`);
-        console.error(`- Keys: ${Object.keys(binaryData || {})}`);
-        console.error(`- Sample: ${JSON.stringify(binaryData).substring(0, 300)}`);
-        console.error(`- Has type property: ${binaryData?.type}`);
-        console.error(`- Has data property: ${binaryData?.data ? 'yes, type: ' + typeof binaryData.data : 'no'}`);
-        throw new Error(`Segment ${i}: Unexpected binary data format - ${typeof binaryData}`);
+        throw new Error(`Segment ${i}: Unexpected binary data type - ${typeof binaryData}`);
       }
       
       if (audioBuffer.length === 0) {
